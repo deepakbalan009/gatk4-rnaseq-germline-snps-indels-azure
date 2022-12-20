@@ -248,7 +248,7 @@ task gtfToCallingIntervals {
     File gtf
     File ref_dict
 
-    String output_name = basename(gtf, ".gtf") + ".exons.interval_list"
+    String output_name = "Jo-McCullough-" + basename(gtf, ".gtf") + ".exons.interval_list"
 
     String docker
     String gatk_path
@@ -289,6 +289,8 @@ task SamToFastq {
     String base_name
 
     String gatk_path
+    
+    String output_name = "Jo-McCullough-" + ${base_name}"
 
     String docker
 	Int preemptible_count
@@ -298,13 +300,13 @@ task SamToFastq {
 	 	    SamToFastq \
 	 	    --INPUT ${unmapped_bam} \
 	 	    --VALIDATION_STRINGENCY SILENT \
-	 	    --FASTQ ${base_name}.1.fastq.gz \
-	 	    --SECOND_END_FASTQ ${base_name}.2.fastq.gz
+	 	    --FASTQ ${output_name}.1.fastq.gz \
+	 	    --SECOND_END_FASTQ ${output_name}.2.fastq.gz
 	>>>
 
 	output {
-		File fastq1 = "${base_name}.1.fastq.gz"
-        File fastq2 = "${base_name}.2.fastq.gz"
+		File fastq1 = "${output_name}.1.fastq.gz"
+        File fastq2 = "${output_name}.2.fastq.gz"
 	}
 
 	runtime {
@@ -321,6 +323,8 @@ task StarGenerateReferences {
 	File ref_fasta_index
 	File annotations_gtf
 	Int? read_length  ## Should this be an input, or should this always be determined by reading the first line of a fastq input
+
+	String output_name = "Jo-McCullough-star-HUMAN-refs.tar.gz"
 
 	Int? num_threads
 	Int threads = select_first([num_threads, 8])
@@ -347,12 +351,12 @@ task StarGenerateReferences {
 
 		ls STAR2_5
 
-		tar -zcvf star-HUMAN-refs.tar.gz STAR2_5
+		tar -zcvf ${output_name} STAR2_5
 	>>>
 
 	output {
 		Array[File] star_logs = glob("*.out")
-		File star_genome_refs_zipped = "star-HUMAN-refs.tar.gz"
+		File star_genome_refs_zipped = ${output_name}
 	}
 
 	runtime {
@@ -379,6 +383,8 @@ task StarAlign {
 	Int star_mem = select_first([star_mem_max_gb, 45])
 	#Is there an appropriate default for this?
 	Int? star_limitOutSJcollapsed
+	
+	String output_name = "Jo-McCullough-" + ${base_name}"
 
 	Int? additional_disk
 	Int add_to_disk = select_first([additional_disk, 0])
@@ -400,15 +406,15 @@ task StarAlign {
 		--twopassMode Basic \
 		--limitBAMsortRAM ${star_mem+"000000000"} \
 		--limitOutSJcollapsed ${default=1000000 star_limitOutSJcollapsed} \
-		--outFileNamePrefix ${base_name}.
+		--outFileNamePrefix ${output_name}.
 	>>>
 
 	output {
-		File output_bam = "${base_name}.Aligned.sortedByCoord.out.bam"
-		File output_log_final = "${base_name}.Log.final.out"
-		File output_log = "${base_name}.Log.out"
-		File output_log_progress = "${base_name}.Log.progress.out"
-		File output_SJ = "${base_name}.SJ.out.tab"
+		File output_bam = "${output_name}.Aligned.sortedByCoord.out.bam"
+		File output_log_final = "${output_name}.Log.final.out"
+		File output_log = "${output_name}.Log.out"
+		File output_log_progress = "${output_name}.Log.progress.out"
+		File output_SJ = "${output_name}.SJ.out.tab"
 	}
 
 	runtime {
@@ -431,6 +437,7 @@ task MergeBamAlignment {
     String base_name
 
     String gatk_path
+    String output_name = "Jo-McCullough-" + ${base_name}"
 
     String docker
     Int preemptible_count
@@ -442,13 +449,13 @@ task MergeBamAlignment {
             --REFERENCE_SEQUENCE ${ref_fasta} \
             --UNMAPPED_BAM ${unaligned_bam} \
             --ALIGNED_BAM ${star_bam} \
-            --OUTPUT ${base_name}.bam \
+            --OUTPUT ${output_name}.bam \
             --INCLUDE_SECONDARY_ALIGNMENTS false \
             --VALIDATION_STRINGENCY SILENT
     >>>
  
     output {
-        File output_bam="${base_name}.bam"
+        File output_bam="${output_name}.bam"
     }
 
     runtime {
@@ -466,6 +473,7 @@ task MarkDuplicates {
  	String base_name
 
   String gatk_path
+  String output_name = "Jo-McCullough-" + ${base_name}"
 
   String docker
  	Int preemptible_count
@@ -474,16 +482,16 @@ task MarkDuplicates {
  	    ${gatk_path} \
  	        MarkDuplicates \
  	        --INPUT ${input_bam} \
- 	        --OUTPUT ${base_name}.bam  \
+ 	        --OUTPUT ${output_name}.bam  \
  	        --CREATE_INDEX true \
  	        --VALIDATION_STRINGENCY SILENT \
- 	        --METRICS_FILE ${base_name}.metrics
+ 	        --METRICS_FILE ${output_name}.metrics
  	>>>
 
  	output {
- 		File output_bam = "${base_name}.bam"
- 		File output_bam_index = "${base_name}.bai"
- 		File metrics_file = "${base_name}.metrics"
+ 		File output_bam = "${output_name}.bam"
+ 		File output_bam_index = "${output_name}.bai"
+ 		File metrics_file = "${output_name}.metrics"
  	}
 
 	runtime {
@@ -508,18 +516,19 @@ task SplitNCigarReads {
 	String gatk_path
 	String docker
         Int preemptible_count
+	String output_name = "Jo-McCullough-" + ${base_name}"
 
     command <<<
         ${gatk_path} \
                 SplitNCigarReads \
                 -R ${ref_fasta} \
                 -I ${input_bam} \
-                -O ${base_name}.bam 
+                -O ${output_name}.bam 
     >>>
 
         output {
-                File output_bam = "${base_name}.bam"
-                File output_bam_index = "${base_name}.bai"
+                File output_bam = "${output_name}.bam"
+                File output_bam_index = "${output_name}.bai"
         }
 
     runtime {
@@ -547,6 +556,7 @@ task BaseRecalibrator {
     File ref_fasta_index
 
     String gatk_path
+    String output_name = "Jo-McCullough-" + ${recal_output_file}"
 
     String docker
     Int preemptible_count
@@ -559,13 +569,13 @@ task BaseRecalibrator {
             -R ${ref_fasta} \
             -I ${input_bam} \
             --use-original-qualities \
-            -O ${recal_output_file} \
+            -O ${output_name} \
             -known-sites ${dbSNP_vcf} \
             -known-sites ${sep=" --known-sites " known_indels_sites_VCFs}
     >>>
 
     output {
-        File recalibration_report = recal_output_file
+        File recalibration_report = ${output_name}
     }
 
     runtime {
@@ -590,6 +600,7 @@ task ApplyBQSR {
     File ref_fasta_index
 
     String gatk_path
+    String output_name = "Jo-McCullough-" + ${base_name}"
 
     String docker
     Int preemptible_count
@@ -604,13 +615,13 @@ task ApplyBQSR {
             -R ${ref_fasta} \
             -I ${input_bam} \
             --use-original-qualities \
-            -O ${base_name}.bam \
+            -O ${output_name}.bam \
             --bqsr-recal-file ${recalibration_report}
     >>>
 
     output {
-        File output_bam = "${base_name}.bam"
-        File output_bam_index = "${base_name}.bai"
+        File output_bam = "${output_name}.bam"
+        File output_bam_index = "${output_name}.bai"
     }
 
     runtime {
@@ -640,6 +651,7 @@ task HaplotypeCaller {
 	String gatk_path
 	String docker
 	Int preemptible_count
+	String output_name = "Jo-McCullough-" + ${base_name}"
 
 	Int? stand_call_conf
 
@@ -649,15 +661,15 @@ task HaplotypeCaller {
 		-R ${ref_fasta} \
 		-I ${input_bam} \
 		-L ${interval_list} \
-		-O ${base_name}.vcf.gz \
+		-O ${output_name}.vcf.gz \
 		-dont-use-soft-clipped-bases \
 		--standard-min-confidence-threshold-for-calling ${default=20 stand_call_conf} \
 		--dbsnp ${dbSNP_vcf}
 	>>>
 
 	output {
-		File output_vcf = "${base_name}.vcf.gz"
-		File output_vcf_index = "${base_name}.vcf.gz.tbi"
+		File output_vcf = "${output_name}.vcf.gz"
+		File output_vcf_index = "${output_name}.vcf.gz.tbi"
 	}
 
 	runtime {
@@ -682,6 +694,7 @@ task VariantFiltration {
 	String gatk_path
 	String docker
  	Int preemptible_count
+	String output_name = "Jo-McCullough-" + ${base_name}"
 
 	command <<<
 		 ${gatk_path} \
@@ -694,12 +707,12 @@ task VariantFiltration {
 			--filter "FS > 30.0" \
 			--filter-name "QD" \
 			--filter "QD < 2.0" \
-			-O ${base_name}
+			-O ${output_name}
 	>>>
 
 	output {
-    	File output_vcf = "${base_name}"
-    	File output_vcf_index = "${base_name}.tbi"
+    	File output_vcf = "${output_name}"
+    	File output_vcf_index = "${output_name}.tbi"
 	}
 
 	runtime {
@@ -719,6 +732,7 @@ task MergeVCFs {
     Int? disk_size = 5
 
     String gatk_path
+    String output_name = "Jo-McCullough-" + ${output_vcf_name}"
 
     String docker
     Int preemptible_count
@@ -729,12 +743,12 @@ task MergeVCFs {
         ${gatk_path} --java-options "-Xms2000m"  \
             MergeVcfs \
             --INPUT ${sep=' --INPUT ' input_vcfs} \
-            --OUTPUT ${output_vcf_name}
+            --OUTPUT ${output_name}
     >>>
 
     output {
-        File output_vcf = output_vcf_name
-        File output_vcf_index = "${output_vcf_name}.tbi"
+        File output_vcf = ${output_name}
+        File output_vcf_index = "${output_name}.tbi"
     }
 
     runtime {
@@ -753,6 +767,7 @@ task ScatterIntervalList {
 	String gatk_path
 	String docker
 	Int preemptible_count
+	String output_name = "Jo-McCullough-" + ${base_name}"
 
     command <<<
         set -e
@@ -803,6 +818,7 @@ task RevertSam {
     String sort_order
 
     String gatk_path
+    String output_name = "Jo-McCullough-" + ${base_name}.bam
 
     String docker
     Int preemptible_count
@@ -813,7 +829,7 @@ task RevertSam {
         ${gatk_path} \
         	RevertSam \
         	--INPUT ${input_bam} \
-        	--OUTPUT ${base_name}.bam \
+        	--OUTPUT ${output_name} \
         	--VALIDATION_STRINGENCY SILENT \
         	--ATTRIBUTE_TO_CLEAR FT \
         	--ATTRIBUTE_TO_CLEAR CO \
@@ -821,7 +837,7 @@ task RevertSam {
     >>>
 
     output {
-        File output_bam = "${base_name}.bam"
+        File output_bam = "${output_name}"
     }
 
     runtime {
